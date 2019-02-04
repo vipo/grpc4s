@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package vipo;
+
+message Pair {
+    int64 a = 1;
+    int64 b = 2;
+}
+
+message SingleValue {
+    int64 a = 1;
+}

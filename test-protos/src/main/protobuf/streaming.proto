@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package vipo;
+
+import "common.proto";
+
+service Streaming {
+    rpc RequestStream (SingleValue) returns (stream SingleValue);
+    rpc ConsumeStream (stream SingleValue) returns (SingleValue);
+    rpc BiStream (stream SingleValue) returns (stream SingleValue);
+}

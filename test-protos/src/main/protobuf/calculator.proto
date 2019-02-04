@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package vipo;
+
+import "common.proto";
+
+service Calculator {
+    rpc add (Pair) returns (SingleValue);
+    rpc sub (Pair) returns (SingleValue);
+    rpc mul (Pair) returns (SingleValue);
+    rpc div (Pair) returns (SingleValue);
+    rpc neg (SingleValue) returns (SingleValue);
+}
+
