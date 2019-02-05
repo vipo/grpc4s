@@ -74,9 +74,9 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
     def methodDef(m: MethodDescriptor) = PrinterEndo(
       _.add(m.streamType match {
         case StreamType.Unary | StreamType.ServerStreaming =>
-          s"(${m.descriptorName}, s => ${m.getName.capitalize}(${m.inputType.scalaType}.parseFrom(conv.unsafeHead(s))), r => r.stream),"
+          s"(${m.descriptorName}, s => ${m.getName.capitalize}(${m.inputType.scalaType}.parseFrom(s.pure)), r => r.stream),"
         case _ =>
-          s"(${m.descriptorName}, s => ${m.getName.capitalize}(conv.mapStream(s, (bytes: Array[Byte]) => ${m.inputType.scalaType}.parseFrom(bytes))), r => r.stream),"
+          s"(${m.descriptorName}, s => ${m.getName.capitalize}(conv.mapStream(s.stream, (bytes: Array[Byte]) => ${m.inputType.scalaType}.parseFrom(bytes))), r => r.stream),"
       })
     )
 

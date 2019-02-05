@@ -25,14 +25,17 @@ lazy val noPublish = Seq(
 
 lazy val root = (project in file("."))
   .settings(noPublish)
-  .aggregate(monix, runtime)
-  .dependsOn(monix)
+  .aggregate(monix, zio, runtime)
+  .dependsOn(monix, zio)
 
 lazy val protos = (project in file("test-protos"))
   .settings(
     commonSettings,
     noPublish,
     name := "grpc4s-test-protos",
+    libraryDependencies ++= Seq(
+      "org.scalatest"        %% "scalatest"        % "3.0.4"
+    )
   )
   .dependsOn(runtime)
 
@@ -42,11 +45,21 @@ lazy val monix = (project in file("monix"))
     name := "grpc4s-monix",
     libraryDependencies ++= Seq(
       "io.monix"             %% "monix"            % "3.0.0-RC2",
-      "io.grpc"               % "grpc-netty"       % GrpcIoVersion    % "test",
-      "org.scalatest"        %% "scalatest"        % "3.0.4"          % "test"
+      "io.grpc"               % "grpc-netty"       % GrpcIoVersion    % "test"
     )
   )
-  .dependsOn(runtime, protos % "test")  
+  .dependsOn(runtime, protos % "test")
+
+lazy val zio = (project in file("zio"))
+  .settings(
+    commonSettings,
+    name := "grpc4s-zio",
+    libraryDependencies ++= Seq(
+      "org.scalaz"           %% "scalaz-zio"       % "0.6.0",
+      "io.grpc"               % "grpc-netty"       % GrpcIoVersion    % "test"
+    )
+  )
+  .dependsOn(runtime, protos % "test")
 
 lazy val runtime = (project in file("runtime"))
   .settings(

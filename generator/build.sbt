@@ -1,5 +1,5 @@
 
-version := "0.1.17-SNAPSHOT"
+version := "0.1.20-SNAPSHOT"
 
 name := "grpc4s-generator"
 
