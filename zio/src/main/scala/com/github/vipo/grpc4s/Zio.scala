@@ -18,7 +18,7 @@ object Zio {
   type GrpcIO[T] = IO[StatusRuntimeException, T]
   type GrpcStream[T] = Stream[StatusRuntimeException, T]
 
-  private def serverCallHandler[Req, Res](methodType: MethodType, f: Req => Res, constr: Constr[Req, GrpcStream], decons: Decons[Res, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
+  private def serverCallHandler[Req, Res](methodType: MethodType, f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
     methodType match {
       case MethodType.UNARY => unary(f, constr, decons)
       case MethodType.CLIENT_STREAMING => clientStream(f, constr, decons)
@@ -26,12 +26,12 @@ object Zio {
       case _ => bidiStream(f, constr, decons)
     }
 
-  private def unary[Req, Res](f: Req => Res, constr: Constr[Req, GrpcStream], decons: Decons[Res, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
+  private def unary[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncUnaryCall(
       (request: Array[Byte], observer: StreamObserver[Array[Byte]]) => ()
     )
 
-  private def clientStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcStream], decons: Decons[Res, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
+  private def clientStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncClientStreamingCall(
       (observer: StreamObserver[Array[Byte]]) => new StreamObserver[Array[Byte]] {
         override def onNext(value: Array[Byte]): Unit = ???
@@ -40,13 +40,13 @@ object Zio {
       }
     )
 
-  private def serverStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcStream], decons: Decons[Res, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
+  private def serverStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncServerStreamingCall(
       (request: Array[Byte], observer: StreamObserver[Array[Byte]]) =>
         ()
     )
 
-  private def bidiStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcStream], decons: Decons[Res, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
+  private def bidiStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncBidiStreamingCall(
       (observer: StreamObserver[Array[Byte]]) =>
         observer
@@ -59,10 +59,10 @@ object Zio {
     }.build()
 
   implicit val conversions: Conversions[GrpcIO, GrpcStream] = new Conversions[GrpcIO, GrpcStream] {
-    override def toStreamOf[F, T](value: GrpcIO[F], f: F => T): GrpcStream[T] =
-      Stream.lift(value.map(f))
     override def mapStream[F, T](stream: GrpcStream[F], f: F => T): GrpcStream[T] =
       stream.map(f)
+    override def mapUnary[F, T](unary: GrpcIO[F], f: F => T): GrpcIO[T] =
+      unary.map(f)
   }
 
 }

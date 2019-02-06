@@ -1,16 +1,17 @@
-package com.github.vipo.grpc4s
+package com.github.vipo.grpc4s.tests
 
+import com.github.vipo.grpc4s.{Monix, Suite}
 import io.grpc._
 import io.grpc.ServerBuilder.forPort
 
 import scala.concurrent.ExecutionContext
-import Monix._
 import monix.execution.{ExecutionModel, UncaughtExceptionReporter}
 import monix.execution.schedulers.AsyncScheduler
 import org.scalatest.FunSuite
-
-import vipo.streaming.StreamingAlgebra
 import vipo.calculator.CalculatorAlgebra
+import vipo.streaming.StreamingAlgebra
+
+import Monix._
 
 class MonixSuite extends FunSuite with Suite {
 

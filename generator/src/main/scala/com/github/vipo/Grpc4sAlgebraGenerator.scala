@@ -23,9 +23,9 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
         .add(
           m.streamType match {
             case StreamType.Unary | StreamType.ClientStreaming =>
-              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S] = ${m.getName.capitalize}Response(conv.toStreamOf(value, (v: ${m.outputType.scalaType}) => v.toByteArray))"
+              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S] = ${m.getName.capitalize}Response(ResponseUnary(conv.mapUnary(value, (v: ${m.outputType.scalaType}) => v.toByteArray)))"
             case _ =>
-              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S] = ${m.getName.capitalize}Response(conv.mapStream(value, (v: ${m.outputType.scalaType}) => v.toByteArray))"
+              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S] = ${m.getName.capitalize}Response(ResponseStream(conv.mapStream(value, (v: ${m.outputType.scalaType}) => v.toByteArray)))"
           }
         )
         .outdent
@@ -34,7 +34,7 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
 
     def responses(p: FunctionalPrinter) = service.getMethods.asScala.foldLeft(p) { (printer, m) =>
       printer
-        .add(s"case class ${m.getName.capitalize}Response[U[_], S[_]] private(stream: S[Array[Byte]]) extends ${ServiceName}Response[U, S]")
+        .add(s"case class ${m.getName.capitalize}Response[U[_], S[_]] private(value: ResponseSum[U[Array[Byte]], S[Array[Byte]]]) extends ${ServiceName}Response[U, S]")
     }
 
     def uOrSOut(method: MethodDescriptor): String =
@@ -74,9 +74,9 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
     def methodDef(m: MethodDescriptor) = PrinterEndo(
       _.add(m.streamType match {
         case StreamType.Unary | StreamType.ServerStreaming =>
-          s"(${m.descriptorName}, s => ${m.getName.capitalize}(${m.inputType.scalaType}.parseFrom(s.pure)), r => r.stream),"
+          s"(${m.descriptorName}, s => ${m.getName.capitalize}(${m.inputType.scalaType}.parseFrom(s.pure)), r => r.value),"
         case _ =>
-          s"(${m.descriptorName}, s => ${m.getName.capitalize}(conv.mapStream(s.stream, (bytes: Array[Byte]) => ${m.inputType.scalaType}.parseFrom(bytes))), r => r.stream),"
+          s"(${m.descriptorName}, s => ${m.getName.capitalize}(conv.mapStream(s.stream, (bytes: Array[Byte]) => ${m.inputType.scalaType}.parseFrom(bytes))), r => r.value),"
       })
     )
 
@@ -106,7 +106,7 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
       .newline
       .add("import io.grpc.MethodDescriptor")
       .add("import io.grpc.ServiceDescriptor")
-      .add("import com.github.vipo.grpc4s.{Conversions, IdentityMarshaller, ServiceDefinition}")
+      .add("import com.github.vipo.grpc4s.{Conversions, IdentityMarshaller, ServiceDefinition, ResponseUnary, ResponseStream, ResponseSum}")
       .newline
       .add(s"object ${ServiceName}Algebra {")
       .indent
@@ -118,7 +118,7 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
       .call(requests)
       .newline
       .add("// response")
-      .add(s"sealed trait ${ServiceName}Response[U[_], S[_]] { def stream: S[Array[Byte]] }")
+      .add(s"sealed trait ${ServiceName}Response[U[_], S[_]] { def value: ResponseSum[U[Array[Byte]], S[Array[Byte]]] }")
       .call(responses)
       .newline
       .add(s"def definition[U[_], S[_]](implicit conv: Conversions[U, S]): ServiceDefinition[${ServiceName}Request[U, S], ${ServiceName}Response[U, S], U, S] = ServiceDefinition(")

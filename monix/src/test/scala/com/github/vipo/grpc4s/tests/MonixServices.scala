@@ -1,4 +1,4 @@
-package com.github.vipo.grpc4s
+package com.github.vipo.grpc4s.tests
 
 import monix.eval.Task
 import monix.reactive.Observable

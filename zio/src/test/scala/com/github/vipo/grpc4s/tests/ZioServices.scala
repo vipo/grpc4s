@@ -1,4 +1,4 @@
-package com.github.vipo.grpc4s
+package com.github.vipo.grpc4s.tests
 
 import com.github.vipo.grpc4s.Zio.{GrpcIO, GrpcStream}
 

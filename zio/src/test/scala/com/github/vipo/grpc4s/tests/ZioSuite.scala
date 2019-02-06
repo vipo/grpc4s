@@ -1,13 +1,13 @@
-package com.github.vipo.grpc4s
+package com.github.vipo.grpc4s.tests
 
+import com.github.vipo.grpc4s.{Suite, Zio}
 import io.grpc._
 import io.grpc.ServerBuilder.forPort
 import org.scalatest.FunSuite
 import vipo.calculator.CalculatorAlgebra
+import vipo.streaming.StreamingAlgebra
 
 import Zio._
-
-import vipo.streaming.StreamingAlgebra
 
 class ZioSuite extends FunSuite with Suite {
 
