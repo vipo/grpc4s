@@ -1,6 +1,6 @@
 package com.github.vipo.grpc4s.tests
 
-import com.github.vipo.grpc4s.{Monix, Suite}
+import com.github.vipo.grpc4s.{Monix, StreamingSuite, UnarySuite}
 import io.grpc._
 import io.grpc.ServerBuilder.forPort
 
@@ -10,10 +10,9 @@ import monix.execution.schedulers.AsyncScheduler
 import org.scalatest.FunSuite
 import vipo.calculator.CalculatorAlgebra
 import vipo.streaming.StreamingAlgebra
-
 import Monix._
 
-class MonixSuite extends FunSuite with Suite {
+class MonixSuite extends FunSuite with StreamingSuite with UnarySuite {
 
   def port: Int = 4243
 

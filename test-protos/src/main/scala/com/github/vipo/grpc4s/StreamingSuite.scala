@@ -1,11 +1,6 @@
 package com.github.vipo.grpc4s
 
-import java.util.concurrent.TimeUnit
-
-import io.grpc._
 import io.grpc.stub.StreamObserver
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
-import vipo.calculator.CalculatorGrpc.CalculatorStub
 import vipo.common.SingleValue
 import vipo.streaming.StreamingGrpc.StreamingStub
 
@@ -13,39 +8,9 @@ import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Promise}
 
-trait Suite extends FunSuite with BeforeAndAfterAll {
-  val server: Server
-  def port: Int
+trait StreamingSuite extends SuiteBase {
 
-  val channel: ManagedChannel = {
-    val builder = ManagedChannelBuilder.forAddress("localhost", port)
-    builder.usePlaintext()
-    builder.build()
-  }
-
-  override def beforeAll(): Unit = server.start()
-
-  override def afterAll(): Unit = server.shutdownNow()
-
-  val options = CallOptions.DEFAULT.withDeadline(Deadline.after(10, TimeUnit.SECONDS))
-  val calculator = new CalculatorStub(channel, options)
   val streaming = new StreamingStub(channel, options)
-
-  test("happy path") {
-    assert(
-      Await.result(calculator.add(vipo.common.Pair(42, 42)), Duration.Inf) ==
-        vipo.common.SingleValue(84)
-    )
-  }
-
-  test("exception") {
-    val thrown = intercept[Exception] {
-      Await.result(calculator.div(vipo.common.Pair(42, 0)), Duration.Inf)
-    }
-    assert(
-      thrown.getClass == classOf[StatusRuntimeException]
-    )
-  }
 
   test("request a stream") {
     val result = mutable.ArrayBuffer[SingleValue]()
