@@ -7,10 +7,13 @@ import org.scalatest.FunSuite
 import vipo.calculator.CalculatorAlgebra
 import vipo.streaming.StreamingAlgebra
 import Zio._
+import scalaz.zio.RTS
 
-class ZioSuite extends FunSuite with StreamingSuite with UnarySuite {
+class ZioSuite extends FunSuite with UnarySuite with StreamingSuite {
 
   def port = 4242
+
+  implicit val rts = new RTS {}
 
   val server: Server = {
     val builder = forPort(port)

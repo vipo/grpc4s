@@ -14,11 +14,11 @@ import vipo.common.SingleValue
 object ZioServices {
 
   val calculator: CalculatorFunction[GrpcIO, GrpcStream] = {
-    case r@Add(p) => r(IO.sync(SingleValue(p.a + p.b)))
-    case r@Sub(p) => r(IO.sync(SingleValue(p.a - p.b)))
-    case r@Mul(p) => r(IO.sync(SingleValue(p.a * p.b)))
-    case r@Div(p) => r(IO.sync(SingleValue(p.a / p.b)))
-    case r@Neg(p) => r(IO.sync(SingleValue(-p.a)))
+    case r@Add(p) => r(IO.succeed(SingleValue(p.a + p.b)))
+    case r@Sub(p) => r(IO.succeed(SingleValue(p.a - p.b)))
+    case r@Mul(p) => r(IO.succeed(SingleValue(p.a * p.b)))
+    case r@Div(p) => r(IO.succeed(SingleValue(p.a / p.b)))
+    case r@Neg(p) => r(IO.succeed(SingleValue(-p.a)))
   }
 
   val streaming: StreamingFunction[GrpcIO, GrpcStream] = {

@@ -12,7 +12,7 @@ import vipo.calculator.CalculatorAlgebra
 import vipo.streaming.StreamingAlgebra
 import Monix._
 
-class MonixSuite extends FunSuite with StreamingSuite with UnarySuite {
+class MonixSuite extends FunSuite with UnarySuite with StreamingSuite {
 
   def port: Int = 4243
 
