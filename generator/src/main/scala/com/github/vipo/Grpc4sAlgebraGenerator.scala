@@ -19,13 +19,13 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
         .add(s"case class ${m.getName.capitalize}[U[_], S[_]](value: ${uOrSIn(m)})(implicit conv: Conversions[U, S])")
         .indent
         .addIndented(s"extends ${ServiceName}Request[U, S]")
-        .addIndented(s"with (${uOrSOut(m)} => ${ServiceName}Response[U, S]) {")
+        .addIndented(s"with (${uOrSOut(m)} => ${ServiceName}Response[U, S, Array[Byte]]) {")
         .add(
           m.streamType match {
             case StreamType.Unary | StreamType.ClientStreaming =>
-              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S] = ${m.getName.capitalize}Response(ResponseUnary(conv.mapUnary(value, (v: ${m.outputType.scalaType}) => v.toByteArray)))"
+              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S, Array[Byte]] = ${m.getName.capitalize}Response(ResponseUnary(conv.mapUnary(value, (v: ${m.outputType.scalaType}) => v.toByteArray)))"
             case _ =>
-              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S] = ${m.getName.capitalize}Response(ResponseStream(conv.mapStream(value, (v: ${m.outputType.scalaType}) => v.toByteArray)))"
+              s"def apply(value: ${uOrSOut(m)}): ${ServiceName}Response[U, S, Array[Byte]] = ${m.getName.capitalize}Response(ResponseStream(conv.mapStream(value, (v: ${m.outputType.scalaType}) => v.toByteArray)))"
           }
         )
         .outdent
@@ -34,8 +34,25 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
 
     def responses(p: FunctionalPrinter) = service.getMethods.asScala.foldLeft(p) { (printer, m) =>
       printer
-        .add(s"case class ${m.getName.capitalize}Response[U[_], S[_]] private(value: ResponseSum[U[Array[Byte]], S[Array[Byte]]]) extends ${ServiceName}Response[U, S]")
+        .add(s"case class ${m.getName.capitalize}Response[U[_], S[_], V] private(value: ResponseSum[U[V], S[V]]) extends ${ServiceName}Response[U, S, V]")
     }
+
+    def matches(p: FunctionalPrinter) = service.getMethods.asScala.foldLeft(p) { (printer, m) => {
+      val unappplyStr =
+        m.streamType match {
+          case StreamType.Unary | StreamType.ClientStreaming =>
+            s"Some(ResponseUnary(conv.mapUnary(arg.value.unary, (b: Array[Byte]) => ${m.outputType.scalaType}.parseFrom(b))))"
+          case _ =>
+            s"Some(ResponseStream(conv.mapStream(arg.value.stream, (b: Array[Byte]) => ${m.outputType.scalaType}.parseFrom(b))))"
+        }
+      printer
+        .add(s"object ${m.getName.capitalize}Response {")
+        .indent
+        .add(s"def unapply[U[_], S[_]](arg: ${m.getName.capitalize}Response[U, S, Array[Byte]])(implicit conv: Conversions[U, S]): Option[(ResponseSum[U[${m.outputType.scalaType}], S[${m.outputType.scalaType}]])] =")
+        .addIndented(unappplyStr)
+        .outdent
+        .add("}")
+    }}
 
     def uOrSOut(method: MethodDescriptor): String =
       method.streamType match {
@@ -111,17 +128,20 @@ class Grpc4sAlgebraGenerator(implicits: DescriptorImplicits) {
       .add(s"object ${ServiceName}Algebra {")
       .indent
       .newline
-      .add(s"type ${ServiceName}Function[U[_], S[_]] = ${ServiceName}Request[U, S] => ${ServiceName}Response[U, S]")
+      .add(s"type ${ServiceName}Function[U[_], S[_]] = ${ServiceName}Request[U, S] => ${ServiceName}Response[U, S, Array[Byte]]")
       .newline
       .add("// request")
       .add(s"sealed trait ${ServiceName}Request[U[_], S[_]]")
       .call(requests)
       .newline
       .add("// response")
-      .add(s"sealed trait ${ServiceName}Response[U[_], S[_]] { def value: ResponseSum[U[Array[Byte]], S[Array[Byte]]] }")
+      .add(s"sealed trait ${ServiceName}Response[U[_], S[_], V] { def value: ResponseSum[U[V], S[V]] }")
       .call(responses)
       .newline
-      .add(s"def definition[U[_], S[_]](implicit conv: Conversions[U, S]): ServiceDefinition[${ServiceName}Request[U, S], ${ServiceName}Response[U, S], U, S] = ServiceDefinition(")
+      .add("// response matches")
+      .call(matches)
+      .newline
+      .add(s"def definition[U[_], S[_]](implicit conv: Conversions[U, S]): ServiceDefinition[${ServiceName}Request[U, S], ${ServiceName}Response[U, S, Array[Byte]], U, S] = ServiceDefinition(")
       .indent
       .add("SERVICE,")
       .add("List(")
