@@ -1,5 +1,5 @@
 
-version := "0.1.33-SNAPSHOT"
+version := "0.2"
 
 name := "grpc4s-generator"
 
@@ -19,3 +19,7 @@ sourceGenerators in Compile += Def.task {
        |}""".stripMargin)
   Seq(file)
 }.taskValue
+
+bintrayRepository := "grpc4s"
+
+licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
