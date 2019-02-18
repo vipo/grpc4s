@@ -42,8 +42,8 @@ _Note_: grpc feature of ScalaPB is not needed
 
 ### Implement your service
 
-Like [here](monix/src/main/scala/com/github/vipo/grpc4s/Monix.scala) or
-[there](vanilla/src/main/scala/com/github/vipo/grpc4s/Vanilla.scala).
+Like [here](monix/src/test/scala/com/github/vipo/grpc4s/tests/MonixServices.scala) or
+[there](vanilla/src/test/scala/com/github/vipo/grpc4s/tests/VanillaServices.scala).
 
 ### Run
 
