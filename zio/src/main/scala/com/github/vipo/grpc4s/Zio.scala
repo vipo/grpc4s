@@ -1,20 +1,25 @@
 package com.github.vipo.grpc4s
 
-import scala.{Stream => _}
 import com.github.vipo.grpc4s.ServiceDefinition.{Constr, Decons}
-
-import scala.language.higherKinds
 import io.grpc.MethodDescriptor.MethodType
 import io.grpc.stub.{ServerCalls, StreamObserver}
-import io.grpc.{ServerCallHandler, ServerServiceDefinition, StatusRuntimeException}
-import scalaz.zio.Exit.{Failure, Success}
+import io.grpc.{ServerCallHandler, ServerServiceDefinition, Status, StatusRuntimeException}
 import scalaz.zio.stream.Take.{End, Fail, Value}
-import scalaz.zio.{IO, Managed, Queue, RTS}
-import scalaz.zio.stream.{Sink, Stream, Take}
+import scalaz.zio.stream.{Stream, Take}
+import scalaz.zio.{Exit, IO, Queue, RTS}
+
+import scala.language.higherKinds
+import scala.{Stream => _}
 
 
 object Zio {
-
+  
+  class 
+  
+  private val MAX_PENDING_REQUESTS = 10
+  
+  case class ExceptionFromClient(cause: Throwable) extends StatusRuntimeException(Status.INTERNAL)
+  
   type GrpcIO[T] = IO[StatusRuntimeException, T]
   type GrpcStream[T] = Stream[StatusRuntimeException, T]
 
@@ -30,51 +35,79 @@ object Zio {
   private def unary[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream])(
       implicit rts: RTS): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncUnaryCall(
-      (request: Array[Byte], observer: StreamObserver[Array[Byte]]) =>
-        rts.unsafeRunAsync(decons(f(constr(RequestPure(request)))).unary) {
-          case Success(value) =>
-            observer.onNext(value)
-            observer.onCompleted()
-          case Failure(cause) =>
-            observer.onError(cause.checked.headOption.getOrElse(cause.unchecked.head))
-        }
+      (request: Array[Byte], observer: StreamObserver[Array[Byte]]) => {
+        writeResultUnsafeAsync(Stream.lift(decons(f(constr(RequestPure(request)))).unary), observer)
+      }
     )
 
   private def clientStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream])(
     implicit rts: RTS): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncClientStreamingCall(
       (observer: StreamObserver[Array[Byte]]) => {
-        new StreamObserver[Array[Byte]] {
-          override def onNext(value: Array[Byte]): Unit = ???
+        val reqQueue = rts.unsafeRun(allocateQueue)
 
-          override def onError(t: Throwable): Unit = ???
+        writeResultUnsafeAsync(Stream.lift(decons(f(constr(RequestStream(requestStreamFrom(reqQueue))))).unary), observer)
 
-          override def onCompleted(): Unit = ???
-        }
+        readTo(reqQueue)
       }
     )
+
+  private def writeResultUnsafeAsync[Res, Req](response: Stream[StatusRuntimeException, Array[Byte]], observer: StreamObserver[Array[Byte]])(implicit rts: RTS) = {
+    rts.unsafeRunAsync(writeStream(response, observer)){
+      _ => () // shouldn't happen,
+    }
+  }
 
   private def serverStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream])(
       implicit rts: RTS): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncServerStreamingCall(
       (request: Array[Byte], observer: StreamObserver[Array[Byte]]) => {
-        val stream: GrpcStream[Array[Byte]] = decons(f(constr(RequestPure(request)))).stream
-        val queue = stream.toQueue()
-        def feed(t: Take[StatusRuntimeException, Array[Byte]]): IO[StatusRuntimeException, Unit] = t match {
-          case End => IO.sync(observer.onCompleted())
-          case Value(value) => IO.sync(observer.onNext(value))
-          case Fail(er) => IO.sync(observer.onError(er))
-        }
-        rts.unsafeRun(queue.use(_.take.flatMap(feed).forever))
+        writeResultUnsafeAsync(decons(f(constr(RequestPure(request)))).stream, observer)
       }
     )
 
-  private def bidiStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream]): ServerCallHandler[Array[Byte], Array[Byte]] =
+  private def bidiStream[Req, Res](f: Req => Res, constr: Constr[Req, GrpcIO, GrpcStream], decons: Decons[Res, GrpcIO, GrpcStream])(
+    implicit rts: RTS): ServerCallHandler[Array[Byte], Array[Byte]] =
     ServerCalls.asyncBidiStreamingCall(
-      (observer: StreamObserver[Array[Byte]]) =>
-        observer
+      (observer: StreamObserver[Array[Byte]]) => {
+        val reqQueue = rts.unsafeRun(allocateQueue)
+        
+        writeResultUnsafeAsync(decons(f(constr(RequestStream(requestStreamFrom(reqQueue))))).stream,  observer)
+     
+        readTo(reqQueue)
+      }
     )
 
+  private val allocateQueue = Queue.bounded(MAX_PENDING_REQUESTS)[Option[Either[StatusRuntimeException, Array[Byte]]]]
+
+  private def requestStreamFrom[Res, Req](queue: Queue[Option[Either[StatusRuntimeException, Array[Byte]]]]) = {
+    val reqStream = Stream.fromQueue(queue).flatMap {
+      case None => Stream.lift(queue.shutdown).flatMap(_ => Stream.empty)
+      case Some(Left(err)) => Stream.lift(IO.fail(err))
+      case Some(Right(req)) => Stream(req)
+    }
+    reqStream
+  }
+
+  private def readTo(reqQueue: Queue[Option[Either[StatusRuntimeException, Array[Byte]]]])(implicit rts: RTS) = new StreamObserver[Array[Byte]] {
+    override def onNext(value: Array[Byte]): Unit = rts.unsafeRunSync(reqQueue.offer(Some(Right(value))))
+
+    override def onError(t: Throwable): Unit = rts.unsafeRunSync(reqQueue.offer(Some(Left(ExceptionFromClient(t)))))
+
+    override def onCompleted(): Unit = rts.unsafeRunSync(reqQueue.offer(None))
+  }
+
+  private def writeStream(stream: GrpcStream[Array[Byte]],
+                          observer: StreamObserver[Array[Byte]]): IO[Nothing, Nothing] = {
+    def feed(t: Take[StatusRuntimeException, Array[Byte]]): IO[Nothing, Unit] = t match {
+      case End => IO.sync(observer.onCompleted())
+      case Value(value) => IO.sync(observer.onNext(value))
+      case Fail(er) => IO.sync(observer.onError(er))
+    }
+
+    stream.toQueue().use(_.take.flatMap(feed).forever)
+  }
+  
   def build[Req, Res](f: Req => Res, definition: ServiceDefinition[Req, Res, GrpcIO, GrpcStream])(implicit rts: RTS): ServerServiceDefinition =
     definition.methods.foldLeft(ServerServiceDefinition.builder(definition.service)){
       case (builder, method) =>

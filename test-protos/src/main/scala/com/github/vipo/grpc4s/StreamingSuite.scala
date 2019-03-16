@@ -17,7 +17,7 @@ trait StreamingSuite extends SuiteBase {
     val promise = Promise[List[SingleValue]]
     streaming.requestStream(vipo.common.SingleValue(4), new StreamObserver[SingleValue] {
       override def onNext(value: SingleValue): Unit = result.append(value)
-      override def onError(t: Throwable): Unit = promise.failure(new IllegalStateException())
+      override def onError(t: Throwable): Unit = promise.failure(new IllegalStateException(t))
       override def onCompleted(): Unit = promise.success(result.toList)
     })
 
@@ -31,7 +31,7 @@ trait StreamingSuite extends SuiteBase {
     val promise = Promise[SingleValue]
     val writer = streaming.consumeStream(new StreamObserver[SingleValue] {
       override def onNext(value: SingleValue): Unit =  promise.success(value)
-      override def onError(t: Throwable): Unit = promise.failure(new IllegalStateException())
+      override def onError(t: Throwable): Unit = promise.failure(new IllegalStateException(t))
       override def onCompleted(): Unit = ()
     })
     writer.onNext(SingleValue(12))
@@ -55,14 +55,14 @@ trait StreamingSuite extends SuiteBase {
       override def onCompleted(): Unit = promise.success(result.toList)
     })
     writer.onNext(SingleValue(12))
-    writer.onNext(SingleValue(12))
-    writer.onNext(SingleValue(12))
-    writer.onNext(SingleValue(12))
+    writer.onNext(SingleValue(13))
+    writer.onNext(SingleValue(14))
+    writer.onNext(SingleValue(15))
     writer.onCompleted()
 
     assert(
       Await.result(promise.future, Duration.Inf) ==
-        List(SingleValue(12), SingleValue(12), SingleValue(12), SingleValue(12))
+        List(SingleValue(13), SingleValue(14), SingleValue(15), SingleValue(16))
     )
   }
 
