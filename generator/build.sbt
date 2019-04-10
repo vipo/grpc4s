@@ -1,12 +1,12 @@
 
-version := "0.2"
+version := "0.2.1"
 
 name := "grpc4s-generator"
 
 organization := "com.github.vipo"
 
 libraryDependencies ++= Seq(
-  "com.thesamet.scalapb" %% "protoc-bridge"  % "0.7.3",
+  "com.thesamet.scalapb" %% "protoc-bridge"  % "0.7.4",
   "com.thesamet.scalapb" %% "compilerplugin" % scalapb.compiler.Version.scalapbVersion
 )
 

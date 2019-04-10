@@ -2,7 +2,7 @@ import sbt.Keys.licenses
 
 val Version = com.github.vipo.Grpc4s.Version
 val ScalaPbVersion = scalapb.compiler.Version.scalapbVersion
-val GrpcIoVersion = "1.17.1"
+val GrpcIoVersion = "1.20.0"
 
 lazy val commonSettings = Seq(
   version := Version,
