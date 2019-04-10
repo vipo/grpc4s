@@ -21,7 +21,7 @@ object MonixServices {
   val streaming: StreamingFunction[Task, Observable] = {
     case r@RequestStream(p) => r(Observable.fromIterable(Iterator.fill(p.a.toInt)(SingleValue(42)).toIterable))
     case r@ConsumeStream(s) => r(s.map(_.a.toInt).foldLeftL(0)(_+_).map(SingleValue(_)))
-    case r@BiStream(s) => r(s)
+    case r@BiStream(s) => r(s.map(v => SingleValue(v.a + 1)))
   }
 
 }

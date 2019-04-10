@@ -13,11 +13,7 @@ import scala.{Stream => _}
 
 
 object Zio {
-  
-  class 
-  
-  private val MAX_PENDING_REQUESTS = 10
-  
+
   case class ExceptionFromClient(cause: Throwable) extends StatusRuntimeException(Status.INTERNAL)
   
   type GrpcIO[T] = IO[StatusRuntimeException, T]
@@ -78,7 +74,7 @@ object Zio {
       }
     )
 
-  private val allocateQueue = Queue.bounded(MAX_PENDING_REQUESTS)[Option[Either[StatusRuntimeException, Array[Byte]]]]
+  private val allocateQueue = Queue.unbounded[Option[Either[StatusRuntimeException, Array[Byte]]]]
 
   private def requestStreamFrom[Res, Req](queue: Queue[Option[Either[StatusRuntimeException, Array[Byte]]]]) = {
     val reqStream = Stream.fromQueue(queue).flatMap {
