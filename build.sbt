@@ -58,7 +58,6 @@ lazy val monix = (project in file("monix"))
 lazy val zio = (project in file("zio"))
   .settings(
     commonSettings,
-    noPublish, // tests do not pass
     name := "grpc4s-zio",
     libraryDependencies ++= Seq(
       "org.scalaz"           %% "scalaz-zio"       % "0.6.0",

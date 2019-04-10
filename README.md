@@ -62,9 +62,6 @@ _Note:_ `CalculatorAlgebra` is a generated code.
 
 1. [ScalaPB](https://github.com/scalapb/ScalaPB) for entities generation (only, grpc is not needed)
 2. Supports streaming
-3. Can use Monix a backend (grpc4s-monix): Tasks and Observables will be used
-4. Can be used with zero external libraries (grpc4s-vanilla): Scala Futures will be used with no streaming support  
-
-## Next
-
-1. Zio backend
+3. Supports Monix (grpc4s-monix): Tasks and Observables will be used
+4. Supports Zio (grpc4s-zio): IO and Stream will be used 
+5. Can be used with zero external libraries (grpc4s-vanilla): Scala Futures will be used with no streaming support  
